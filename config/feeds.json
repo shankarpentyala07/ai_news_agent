@@ -1,0 +1,29 @@
+{
+  "feeds": [
+    {
+      "name": "ArXiv AI",
+      "url": "http://arxiv.org/rss/cs.AI",
+      "category": "research"
+    },
+    {
+      "name": "TechCrunch AI",
+      "url": "https://techcrunch.com/tag/artificial-intelligence/feed/",
+      "category": "news"
+    },
+    {
+      "name": "VentureBeat AI",
+      "url": "https://venturebeat.com/category/ai/feed/",
+      "category": "news"
+    },
+    {
+      "name": "MIT Tech Review AI",
+      "url": "https://www.technologyreview.com/topic/artificial-intelligence/feed",
+      "category": "analysis"
+    },
+    {
+      "name": "AI News",
+      "url": "https://www.artificialintelligence-news.com/feed/",
+      "category": "news"
+    }
+  ]
+}
