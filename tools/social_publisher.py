@@ -20,17 +20,19 @@ from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_excep
     wait=wait_exponential(multiplier=2, min=2, max=60),
     retry=retry_if_exception_type((ConnectionError, TimeoutError))
 )
-def post_to_linkedin(post_text: str, credentials_json: str = "") -> str:
+def post_to_linkedin(post_text: str, credentials_json: str = "", post_as_organization: bool = True) -> str:
     """
     Posts content to LinkedIn using the LinkedIn API.
 
     Uses retry logic to handle rate limiting and temporary failures.
+    Supports posting to both personal profiles and organization/company pages.
 
-    API Documentation: https://learn.microsoft.com/en-us/linkedin/consumer/integrations/self-serve/share-on-linkedin
+    API Documentation: https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/posts-api
 
     Args:
         post_text: The text content to post
         credentials_json: JSON string with credentials (optional, uses Config if not provided)
+        post_as_organization: If True, posts to organization page. If False, posts as personal profile.
 
     Returns:
         JSON string with:
@@ -59,50 +61,77 @@ def post_to_linkedin(post_text: str, credentials_json: str = "") -> str:
                 "post_id": ""
             })
 
-        # LinkedIn API endpoint for creating a post (UGC API)
-        url = "https://api.linkedin.com/v2/ugcPosts"
+        organization_id = credentials.get("organization_id")
+
+        # LinkedIn Posts API endpoint (recommended for organization posts)
+        url = "https://api.linkedin.com/rest/posts"
 
         headers = {
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json",
-            "X-Restli-Protocol-Version": "2.0.0"
+            "X-Restli-Protocol-Version": "2.0.0",
+            "LinkedIn-Version": "202401"
         }
 
-        # Get person URN (requires a separate API call in production)
-        # For now, this is a placeholder - in production, you'd need to:
-        # 1. Call /v2/me to get the person URN
-        # 2. Store it or retrieve it dynamically
+        if post_as_organization and organization_id:
+            # Post as organization/company page
+            author_urn = f"urn:li:organization:{organization_id}"
+            visibility = "PUBLIC"
+        else:
+            # Post as personal profile - need to get person ID first
+            me_response = requests.get(
+                "https://api.linkedin.com/v2/userinfo",
+                headers={"Authorization": f"Bearer {access_token}"},
+                timeout=30
+            )
+            if me_response.status_code != 200:
+                return json.dumps({
+                    "status": "error",
+                    "error_message": f"Failed to get user info: {me_response.text}",
+                    "post_url": "",
+                    "post_id": ""
+                })
+            person_id = me_response.json().get("sub")
+            author_urn = f"urn:li:person:{person_id}"
+            visibility = "PUBLIC"
 
-        # Simplified payload (note: in production, you'd need proper person/organization URN)
+        # Posts API payload
         payload = {
-            "author": "urn:li:person:YOUR_PERSON_ID",  # Replace with actual person ID
-            "lifecycleState": "PUBLISHED",
-            "specificContent": {
-                "com.linkedin.ugc.ShareContent": {
-                    "shareCommentary": {
-                        "text": post_text
-                    },
-                    "shareMediaCategory": "NONE"
-                }
+            "author": author_urn,
+            "commentary": post_text,
+            "visibility": visibility,
+            "distribution": {
+                "feedDistribution": "MAIN_FEED",
+                "targetEntities": [],
+                "thirdPartyDistributionChannels": []
             },
-            "visibility": {
-                "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"
-            }
+            "lifecycleState": "PUBLISHED",
+            "isReshareDisabledByAuthor": False
         }
 
         # Make API request
         response = requests.post(url, headers=headers, json=payload, timeout=30)
 
-        if response.status_code == 201:
-            post_id = response.json().get("id", "")
-            # LinkedIn post URL format
-            post_url = f"https://www.linkedin.com/feed/update/{post_id}/" if post_id else ""
+        if response.status_code in [200, 201]:
+            # Get post ID from response header or body
+            post_id = response.headers.get("x-restli-id", "")
+            if not post_id and response.text:
+                try:
+                    post_id = response.json().get("id", "")
+                except:
+                    pass
+
+            # LinkedIn post URL format for organization posts
+            if post_as_organization and organization_id:
+                post_url = f"https://www.linkedin.com/company/{organization_id}/posts/" if post_id else ""
+            else:
+                post_url = f"https://www.linkedin.com/feed/update/{post_id}/" if post_id else ""
 
             return json.dumps({
                 "status": "success",
                 "post_url": post_url,
                 "post_id": post_id,
-                "message": "Successfully posted to LinkedIn"
+                "message": f"Successfully posted to LinkedIn {'organization page' if post_as_organization else 'personal profile'}"
             })
         elif response.status_code == 429:
             # Rate limited
@@ -121,7 +150,7 @@ def post_to_linkedin(post_text: str, credentials_json: str = "") -> str:
             "error_message": f"LinkedIn posting failed: {str(e)}",
             "post_url": "",
             "post_id": "",
-            "note": "Check API credentials and permissions. Set up LinkedIn API at https://www.linkedin.com/developers/"
+            "note": "Check API credentials and permissions. Required scopes: w_organization_social for org posts."
         })
 
 
