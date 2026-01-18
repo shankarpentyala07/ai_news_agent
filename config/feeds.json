@@ -6,6 +6,11 @@
       "category": "news"
     },
     {
+      "name": "VentureBeat",
+      "url": "https://feeds.feedburner.com/venturebeat/SZYF",
+      "category": "news"
+    },
+    {
       "name": "The Verge AI",
       "url": "https://www.theverge.com/rss/ai-artificial-intelligence/index.xml",
       "category": "news"
