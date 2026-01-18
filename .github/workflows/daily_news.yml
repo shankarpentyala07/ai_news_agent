@@ -8,6 +8,11 @@ on:
   # Allow manual trigger from GitHub UI
   workflow_dispatch:
 
+# Permissions needed for creating issues
+permissions:
+  contents: read
+  issues: write
+
 # Environment variables available to all jobs and steps
 env:
   GOOGLE_CLOUD_PROJECT: ${{ secrets.GOOGLE_CLOUD_PROJECT }}
