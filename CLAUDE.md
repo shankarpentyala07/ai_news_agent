@@ -4,69 +4,145 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-AI News Agent is an automated pipeline that fetches AI news from RSS feeds, curates content, drafts social media posts, gets human approval, and publishes to LinkedIn and Twitter. Built using Google Agent Development Kit (ADK) with Gemini 2.5 Flash.
+AI Daily Brief is an automated pipeline that fetches AI news from RSS feeds, curates content, and generates LinkedIn posts using Gemini AI. The system runs daily via GitHub Actions and creates GitHub Issues with draft posts for manual publishing to LinkedIn.
+
+**LinkedIn Page**: [AI Daily Brief](https://www.linkedin.com/company/111211103/)
 
 ## Commands
 
+**Note**: Always use `python3` for this project (not `python`).
+
 ```bash
+# Activate virtual environment first
+source venv/bin/activate
+
 # Install dependencies
-pip install -r requirements.txt
+pip3 install -r requirements.txt
 
-# Run the agent manually (fetches news, drafts posts, waits for approval)
-python scripts/run_agent.py
+# Run the GitHub Actions draft generator locally
+python3 scripts/generate_daily_draft.py
 
-# Approve drafted posts for publishing
-python scripts/handle_approval.py --session <session_id> --approve
-
-# Reject drafted posts
-python scripts/handle_approval.py --session <session_id> --reject
+# Run the full agent manually (with approval flow)
+python3 scripts/run_agent.py
 
 # Test RSS feed fetching
-python -c "from tools.rss_fetcher import fetch_rss_feed; print(fetch_rss_feed('http://arxiv.org/rss/cs.AI', 'ArXiv AI'))"
+python3 -c "from tools.rss_fetcher import fetch_rss_feed; print(fetch_rss_feed('https://techcrunch.com/category/artificial-intelligence/feed/', 'TechCrunch AI'))"
 ```
+
+## Daily Workflow
+
+The project uses **GitHub Actions** for automation:
+
+1. **Trigger**: Runs daily at 12:01 AM PST (cron: `1 8 * * *` UTC)
+2. **Fetch**: Pulls articles from 6 RSS feeds (TechCrunch, VentureBeat, The Verge, Wired, AI News, Google AI Blog)
+3. **Curate**: Filters for AI relevance, ranks by importance, excludes already-posted articles
+4. **Generate**: Uses Gemini 2.0 Flash to create engaging LinkedIn post draft
+5. **Issue**: Creates GitHub Issue with the draft for review
+6. **Publish**: Manual copy/paste to LinkedIn (Community Management API requires business email)
 
 ## Architecture
 
-The agent uses a **sequential pipeline** with one parallel stage:
+### GitHub Actions Flow (Primary)
+
+The daily workflow uses `generate_daily_draft.py` which **directly calls tool functions** (no agents):
 
 ```
-RSSFetcherTeam (ParallelAgent) → NewsCuratorAgent → PostDrafterAgent → ApprovalAgent → PublisherAgent
+.github/workflows/daily_news.yml
+        ↓
+scripts/generate_daily_draft.py
+        ↓
+tools/rss_fetcher.py + tools/news_curator.py (direct function calls)
+        ↓
+Gemini 2.0 Flash (draft generation via google.genai)
+        ↓
+GitHub Issue with draft
 ```
 
-### Pipeline Stages (agent.py)
+### Full Agent Flow (Alternative)
 
-1. **RSSFetcherTeam**: ParallelAgent containing three sub-agents that fetch feeds concurrently (ArXiv, TechCrunch, VentureBeat). Each uses `output_key` to store results.
+The ADK-based agent pipeline in `agent.py` uses **SequentialAgent and ParallelAgent** for a more sophisticated flow with human-in-the-loop approval:
 
-2. **NewsCuratorAgent**: Filters articles by AI keywords, ranks by relevance/recency/source credibility, excludes already-posted articles. Uses `{arxiv_results}`, `{techcrunch_results}`, `{venturebeat_results}` template variables.
+```
+ai_news_pipeline (SequentialAgent)
+├── rss_fetcher_team (ParallelAgent)
+│   ├── arxiv_fetcher (Agent)
+│   ├── techcrunch_fetcher (Agent)
+│   └── venturebeat_fetcher (Agent)
+├── news_curator (Agent)
+├── post_drafter (Agent)
+├── approval_agent (Agent) ← Human-in-Loop pause point
+└── publisher_agent (Agent)
+```
 
-3. **PostDrafterAgent**: Creates platform-specific drafts using `{curated_news}` from previous stage.
+Run with: `python scripts/run_agent.py`
 
-4. **ApprovalAgent**: Human-in-loop pattern using `ToolContext.request_confirmation()`. Pauses execution until user approves/rejects via CLI.
+## Key Files
 
-5. **PublisherAgent**: Posts to LinkedIn/Twitter APIs, records article in SQLite to prevent duplicates.
+| File | Purpose |
+|------|---------|
+| `scripts/generate_daily_draft.py` | Main script for GitHub Actions - fetches, curates, generates draft |
+| `.github/workflows/daily_news.yml` | GitHub Actions workflow configuration |
+| `config/feeds.json` | RSS feed URLs and categories |
+| `tools/rss_fetcher.py` | RSS feed fetching with feedparser |
+| `tools/news_curator.py` | AI keyword filtering and relevance ranking |
+| `agent.py` | Full ADK agent definition (for interactive mode) |
 
-### Key Patterns
+## RSS Feeds
 
-- **Data flow**: Agents pass data via `output_key` attributes and `{variable}` templates in instructions
-- **Resumability**: `ResumabilityConfig(is_resumable=True)` enables pause/resume for human approval
-- **Session persistence**: `DatabaseSessionService` with SQLite stores session state
-- **Retry logic**: `types.HttpRetryOptions` on Gemini model + `tenacity` decorators on API calls
+Current sources in `config/feeds.json`:
+- TechCrunch AI
+- VentureBeat (via FeedBurner)
+- The Verge AI
+- Wired AI
+- AI News
+- Google AI Blog
+
+To add a feed, edit `config/feeds.json`:
+```json
+{"name": "Feed Name", "url": "https://example.com/feed/", "category": "news"}
+```
 
 ## Configuration
 
-- **Environment**: `.env` file with Google Cloud, LinkedIn, and Twitter credentials
-- **RSS feeds**: `config/feeds.json` - add/remove news sources here
-- **AI keywords**: `tools/news_curator.py:AI_KEYWORDS` list for relevance filtering
-- **Source credibility scores**: `tools/news_curator.py:rank_by_relevance()` function
+### Environment Variables
 
-## Data Storage
+Required for GitHub Actions (set as repository secrets):
+- `GOOGLE_CLOUD_PROJECT`: GCP project ID
+- `GOOGLE_CLOUD_LOCATION`: GCP region (e.g., `us-west1`)
+- `GOOGLE_GENAI_USE_VERTEXAI`: Set to `1`
+- `GOOGLE_CLOUD_CREDENTIALS`: Full JSON of GCP service account key
 
-- `data/sessions.db`: ADK session state for pause/resume
-- `data/posted_articles.db`: Tracks posted articles (prevents duplicates)
+### Local Development
+
+Create `.env` file:
+```bash
+GOOGLE_CLOUD_PROJECT=your-project-id
+GOOGLE_CLOUD_LOCATION=us-west1
+GOOGLE_GENAI_USE_VERTEXAI=1
+LINKEDIN_ORGANIZATION_ID=111211103
+```
 
 ## Tool Functions
 
-Tools return JSON strings (not dicts) for ADK compatibility. Each tool in `tools/` follows this pattern:
+Tools return JSON strings (not dicts) for ADK compatibility:
 - Returns `{"status": "success"|"error", ...}`
 - Handles own database connections
-- Uses `Config` class for credentials/paths
+- Uses `Config` class from `config/settings.py`
+
+## Data Storage
+
+- `drafts/`: Generated LinkedIn post drafts
+- `data/posted_articles.db`: Tracks posted articles (prevents duplicates)
+- `data/sessions.db`: ADK session state (for full agent mode)
+
+## GitHub Notifications
+
+To get notified when new drafts are ready:
+1. Go to repo → Watch → Custom → Check "Issues"
+2. Or configure email notifications in GitHub Settings
+
+## Future Work
+
+- LinkedIn Community Management API integration (requires business email)
+- Twitter/X integration
+- Multi-platform support (Mastodon, Bluesky)

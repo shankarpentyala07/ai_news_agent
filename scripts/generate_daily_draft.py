@@ -91,16 +91,37 @@ def generate_linkedin_draft(articles: list) -> str:
 
     prompt = f"""You are a social media content creator for "AI Daily Brief", a LinkedIn page that provides daily summaries of AI news.
 
-Create an engaging LinkedIn post summarizing today's top AI news. The post should:
-1. Start with an attention-grabbing hook
-2. Summarize the 3-5 most important stories briefly
-3. Use bullet points or numbered lists for readability
-4. Include relevant emojis sparingly
-5. End with a call-to-action or thought-provoking question
-6. Be under 1300 characters (LinkedIn limit)
-7. Include the hashtag #AIDailyBrief
+Create an engaging LinkedIn post summarizing today's top AI news. Follow this EXACT format:
 
-Today's date: {datetime.now().strftime('%B %d, %Y')}
+📰 AI Daily Brief - {datetime.now().strftime('%B %d, %Y')}
+
+🔹 [Story Title] - [2-3 sentence summary explaining what happened and why it matters]
+
+🔹 [Story Title] - [2-3 sentence summary explaining what happened and why it matters]
+
+🔹 [Story Title] - [2-3 sentence summary explaining what happened and why it matters]
+
+🔹 [Story Title] - [2-3 sentence summary explaining what happened and why it matters]
+
+🔹 [Story Title] - [2-3 sentence summary explaining what happened and why it matters]
+
+Follow AI Daily Brief for your daily AI roundup!
+
+#AI #ArtificialIntelligence #TechNews #AINews #AIDailyBrief
+
+---
+Sources:
+- [source URLs]
+
+REQUIREMENTS:
+1. Use the 📰 header with date
+2. Use 🔹 emoji for EVERY bullet point (consistent formatting)
+3. Each story gets a bold/clear title followed by dash and 2-3 sentence explanation
+4. Include 4-5 stories from the articles provided
+5. End with "Follow AI Daily Brief for your daily AI roundup!"
+6. Include hashtags: #AI #ArtificialIntelligence #TechNews #AINews #AIDailyBrief
+7. Add Sources section at the bottom with article links
+8. Keep professional but engaging tone
 
 Top AI news articles from the last 24 hours:
 
