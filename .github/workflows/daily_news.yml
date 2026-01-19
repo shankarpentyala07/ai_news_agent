@@ -1,9 +1,9 @@
 name: Daily AI News Agent
 
 on:
-  # Run daily at 12:01 AM PST (8:01 AM UTC)
+  # Run daily at 6:00 AM PST (2:00 PM UTC)
   schedule:
-    - cron: '1 8 * * *'
+    - cron: '0 14 * * *'
 
   # Allow manual trigger from GitHub UI
   workflow_dispatch:

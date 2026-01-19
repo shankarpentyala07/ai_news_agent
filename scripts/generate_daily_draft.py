@@ -95,15 +95,15 @@ Create an engaging LinkedIn post summarizing today's top AI news. Follow this EX
 
 📰 AI Daily Brief - {datetime.now().strftime('%B %d, %Y')}
 
-🔹 [Story Title] - [2-3 sentence summary explaining what happened and why it matters]
+🔹 Story Title Here - 2-3 sentence summary explaining what happened and why it matters.
 
-🔹 [Story Title] - [2-3 sentence summary explaining what happened and why it matters]
+🔹 Story Title Here - 2-3 sentence summary explaining what happened and why it matters.
 
-🔹 [Story Title] - [2-3 sentence summary explaining what happened and why it matters]
+🔹 Story Title Here - 2-3 sentence summary explaining what happened and why it matters.
 
-🔹 [Story Title] - [2-3 sentence summary explaining what happened and why it matters]
+🔹 Story Title Here - 2-3 sentence summary explaining what happened and why it matters.
 
-🔹 [Story Title] - [2-3 sentence summary explaining what happened and why it matters]
+🔹 Story Title Here - 2-3 sentence summary explaining what happened and why it matters.
 
 Follow AI Daily Brief for your daily AI roundup!
 
@@ -111,17 +111,18 @@ Follow AI Daily Brief for your daily AI roundup!
 
 ---
 Sources:
-- [source URLs]
+- source URLs here
 
 REQUIREMENTS:
 1. Use the 📰 header with date
 2. Use 🔹 emoji for EVERY bullet point (consistent formatting)
-3. Each story gets a bold/clear title followed by dash and 2-3 sentence explanation
-4. Include 4-5 stories from the articles provided
-5. End with "Follow AI Daily Brief for your daily AI roundup!"
-6. Include hashtags: #AI #ArtificialIntelligence #TechNews #AINews #AIDailyBrief
-7. Add Sources section at the bottom with article links
-8. Keep professional but engaging tone
+3. Each story gets a clear title followed by dash and 2-3 sentence explanation
+4. DO NOT use asterisks (**) or any markdown formatting - plain text only
+5. Include 4-5 stories from the articles provided
+6. End with "Follow AI Daily Brief for your daily AI roundup!"
+7. Include hashtags: #AI #ArtificialIntelligence #TechNews #AINews #AIDailyBrief
+8. Add Sources section at the bottom with article links
+9. Keep professional but engaging tone
 
 Top AI news articles from the last 24 hours:
 
