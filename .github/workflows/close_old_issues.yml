@@ -1,0 +1,83 @@
+name: Close Old Daily Brief Issues
+
+on:
+  # Run after the daily news workflow completes
+  workflow_run:
+    workflows: ["Daily AI News Agent"]
+    types:
+      - completed
+
+  # Also run daily at 6:30 AM PST (2:30 PM UTC) - 30 minutes after the daily news workflow
+  schedule:
+    - cron: '30 14 * * *'
+
+  # Allow manual trigger from GitHub UI
+  workflow_dispatch:
+
+# Permissions needed for managing issues
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  close-old-issues:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Close previous day's issues
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const today = new Date().toISOString().split('T')[0];
+            const todayTitle = `AI Daily Brief - ${today}`;
+
+            console.log(`Today's date: ${today}`);
+            console.log(`Today's issue title should be: ${todayTitle}`);
+
+            // Get all open issues with the 'daily-news' label
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'daily-news',
+              per_page: 100
+            });
+
+            console.log(`Found ${issues.data.length} open daily-news issues`);
+
+            let closedCount = 0;
+
+            // Close all issues except today's
+            for (const issue of issues.data) {
+              if (issue.title !== todayTitle) {
+                console.log(`Closing issue #${issue.number}: ${issue.title}`);
+
+                // Add a comment before closing
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  body: '✅ Auto-closed: New daily brief has been generated.'
+                });
+
+                // Close the issue
+                await github.rest.issues.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  state: 'closed'
+                });
+
+                closedCount++;
+              } else {
+                console.log(`Keeping today's issue open: #${issue.number}`);
+              }
+            }
+
+            console.log(`Closed ${closedCount} old issue(s)`);
+
+            if (closedCount === 0 && issues.data.length > 0) {
+              console.log('No old issues to close - only today\'s issue is open.');
+            } else if (issues.data.length === 0) {
+              console.log('No open daily-news issues found.');
+            }

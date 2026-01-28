@@ -107,7 +107,7 @@ Create an engaging LinkedIn post summarizing today's top AI news. Follow this EX
 
 Follow AI Daily Brief for your daily AI roundup!
 
-#AI #ArtificialIntelligence #TechNews #AINews #AIDailyBrief
+#AI #ArtificialIntelligence #AIDailyBrief #RelevantHashtag1 #RelevantHashtag2 #RelevantHashtag3
 
 ---
 Sources:
@@ -120,9 +120,10 @@ REQUIREMENTS:
 4. DO NOT use asterisks (**) or any markdown formatting - plain text only
 5. Include 4-5 stories from the articles provided
 6. End with "Follow AI Daily Brief for your daily AI roundup!"
-7. Include hashtags: #AI #ArtificialIntelligence #TechNews #AINews #AIDailyBrief
+7. Include hashtags: ALWAYS start with #AI #ArtificialIntelligence #AIDailyBrief, then add 3-5 topic-specific hashtags based on the day's news (e.g., #MachineLearning, #LLM, #ComputerVision, #Robotics, #GenerativeAI, #OpenAI, #Google, #Anthropic, #DeepLearning, etc.)
 8. Add Sources section at the bottom with article links
 9. Keep professional but engaging tone
+10. Make hashtags relevant to the specific topics covered in today's news
 
 Top AI news articles from the last 24 hours:
 
@@ -175,9 +176,9 @@ Here are today's top AI stories:
 
 {headlines}
 
-What AI development are you most excited about?
+Follow AI Daily Brief for your daily AI roundup!
 
-#AIDailyBrief #AI #ArtificialIntelligence #TechNews"""
+#AI #ArtificialIntelligence #AIDailyBrief #TechNews #AINews"""
 
 
 def save_draft(draft: str, articles: list):

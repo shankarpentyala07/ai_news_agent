@@ -33,12 +33,18 @@ python3 -c "from tools.rss_fetcher import fetch_rss_feed; print(fetch_rss_feed('
 
 The project uses **GitHub Actions** for automation:
 
-1. **Trigger**: Runs daily at 12:01 AM PST (cron: `1 8 * * *` UTC)
+### Main Workflow (`daily_news.yml`)
+1. **Trigger**: Runs daily at 6:00 AM PST (cron: `0 14 * * *` UTC)
 2. **Fetch**: Pulls articles from 6 RSS feeds (TechCrunch, VentureBeat, The Verge, Wired, AI News, Google AI Blog)
 3. **Curate**: Filters for AI relevance, ranks by importance, excludes already-posted articles
-4. **Generate**: Uses Gemini 2.0 Flash to create engaging LinkedIn post draft
+4. **Generate**: Uses Gemini 2.0 Flash to create engaging LinkedIn post draft with **dynamic hashtags** based on the day's news
 5. **Issue**: Creates GitHub Issue with the draft for review
 6. **Publish**: Manual copy/paste to LinkedIn (Community Management API requires business email)
+
+### Cleanup Workflow (`close_old_issues.yml`)
+- **Trigger**: Runs automatically after daily news workflow completes, or daily at 6:30 AM PST
+- **Purpose**: Automatically closes previous day's issues to keep the issue tracker clean
+- **Behavior**: Closes all open issues with `daily-news` label except today's issue
 
 ## Architecture
 
@@ -80,8 +86,9 @@ Run with: `python scripts/run_agent.py`
 
 | File | Purpose |
 |------|---------|
-| `scripts/generate_daily_draft.py` | Main script for GitHub Actions - fetches, curates, generates draft |
-| `.github/workflows/daily_news.yml` | GitHub Actions workflow configuration |
+| `scripts/generate_daily_draft.py` | Main script for GitHub Actions - fetches, curates, generates draft with dynamic hashtags |
+| `.github/workflows/daily_news.yml` | GitHub Actions workflow - daily news generation |
+| `.github/workflows/close_old_issues.yml` | GitHub Actions workflow - auto-closes old daily brief issues |
 | `config/feeds.json` | RSS feed URLs and categories |
 | `tools/rss_fetcher.py` | RSS feed fetching with feedparser |
 | `tools/news_curator.py` | AI keyword filtering and relevance ranking |
