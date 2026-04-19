@@ -87,42 +87,51 @@ def generate_linkedin_draft(articles: list) -> str:
         for i, a in enumerate(top_articles)
     ])
 
-    prompt = f"""You are a social media content creator for "AI Daily Brief", a LinkedIn page that provides daily summaries of AI news.
+    today = datetime.now().strftime('%B %d, %Y')
+    prompt = f"""You are the expert editor of "AI Daily Brief", a professional LinkedIn page followed by thousands of AI practitioners, researchers, and business leaders.
 
-Create an engaging LinkedIn post summarizing today's top AI news. Follow this EXACT format:
+Your job: write today's LinkedIn post that feels like it was crafted by a senior tech journalist — insightful, punchy, and worth sharing.
 
-📰 AI Daily Brief - {datetime.now().strftime('%B %d, %Y')}
+EXACT OUTPUT FORMAT (copy this structure precisely, no deviations):
 
-🔹 Story Title Here - 2-3 sentence summary explaining what happened and why it matters.
+📰 AI Daily Brief | {today}
 
-🔹 Story Title Here - 2-3 sentence summary explaining what happened and why it matters.
+[One compelling hook sentence about today's AI landscape — make it thought-provoking, not generic]
 
-🔹 Story Title Here - 2-3 sentence summary explaining what happened and why it matters.
+━━━━━━━━━━━━━━━━━━━━━━
 
-🔹 Story Title Here - 2-3 sentence summary explaining what happened and why it matters.
+🔹 [Story headline in your own words]
+[2-3 sentences: what happened → why it matters → what it signals for the industry. Be specific, not vague.]
 
-🔹 Story Title Here - 2-3 sentence summary explaining what happened and why it matters.
+🔹 [Story headline in your own words]
+[2-3 sentences: what happened → why it matters → what it signals for the industry.]
 
-Follow AI Daily Brief for your daily AI roundup!
+🔹 [Story headline in your own words]
+[2-3 sentences: what happened → why it matters → what it signals for the industry.]
 
-#AI #ArtificialIntelligence #AIDailyBrief #RelevantHashtag1 #RelevantHashtag2 #RelevantHashtag3
+🔹 [Story headline in your own words]
+[2-3 sentences: what happened → why it matters → what it signals for the industry.]
 
-REQUIREMENTS:
-1. Use the 📰 header with date
-2. Use 🔹 emoji for EVERY bullet point (consistent formatting)
-3. Each story gets a clear title followed by dash and 2-3 sentence explanation
-4. DO NOT use asterisks (**) or any markdown formatting - plain text only
-5. Include 4-5 stories from the articles provided
-6. End with "Follow AI Daily Brief for your daily AI roundup!"
-7. Include hashtags: ALWAYS start with #AI #ArtificialIntelligence #AIDailyBrief, then add 3-5 topic-specific hashtags based on the day's news (e.g., #MachineLearning, #LLM, #ComputerVision, #Robotics, #GenerativeAI, #OpenAI, #Google, #Anthropic, #DeepLearning, etc.)
-8. Keep professional but engaging tone
-9. Make hashtags relevant to the specific topics covered in today's news
+━━━━━━━━━━━━━━━━━━━━━━
 
-Top AI news articles from the last 24 hours:
+[One closing sentence that sparks curiosity or discussion — end with a question or bold observation]
+
+Follow AI Daily Brief for your daily AI roundup! 🚀
+
+#AI #ArtificialIntelligence #AIDailyBrief [add 4-6 specific hashtags matching today's topics]
+
+STRICT RULES:
+- NO asterisks, NO markdown, NO bullet dashes — use only the 🔹 emoji shown above
+- The hook and closing lines must feel original and insightful, not templated
+- Each story summary must explain the real-world impact, not just restate the headline
+- Hashtags must reflect the specific companies/topics in today's stories (e.g. #OpenAI #Robotics #LLM)
+- Keep the entire post under 1300 characters so it reads well on mobile
+
+Today's top AI stories:
 
 {articles_text}
 
-Generate the LinkedIn post now:"""
+Write the LinkedIn post now:"""
 
     print("\nGenerating LinkedIn draft with Claude Opus...")
 
@@ -154,13 +163,12 @@ Generate the LinkedIn post now:"""
 
 
 def create_fallback_draft(articles: list) -> str:
-    """Create a simple draft if Claude fails."""
+    """Create a styled draft if Claude fails."""
     today = datetime.now().strftime('%B %d, %Y')
-
     top = articles[:5]
 
-    headlines = "\n".join([
-        f"- {a['title']} ({a['source']})"
+    stories = "\n\n".join([
+        f"🔹 {a['title']}\n{a['summary'][:200].strip()}..."
         for a in top
     ])
 
@@ -169,15 +177,21 @@ def create_fallback_draft(articles: list) -> str:
         for a in top
     ])
 
-    return f"""AI Daily Brief - {today}
+    return f"""📰 AI Daily Brief | {today}
 
-Here are today's top AI stories:
+The AI space never sleeps — here's what you need to know today.
 
-{headlines}
+━━━━━━━━━━━━━━━━━━━━━━
 
-Follow AI Daily Brief for your daily AI roundup!
+{stories}
 
-#AI #ArtificialIntelligence #AIDailyBrief #TechNews #AINews
+━━━━━━━━━━━━━━━━━━━━━━
+
+What story catches your eye today? Drop a comment below 👇
+
+Follow AI Daily Brief for your daily AI roundup! 🚀
+
+#AI #ArtificialIntelligence #AIDailyBrief #MachineLearning #TechNews
 
 ---
 Sources:
