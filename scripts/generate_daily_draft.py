@@ -164,8 +164,9 @@ Generate the LinkedIn post now:"""
         return draft
 
     except Exception as e:
+        import traceback
         print(f"  Error generating draft: {e}")
-        # Fallback to a simple template
+        traceback.print_exc()
         return create_fallback_draft(top_articles)
 
 
@@ -173,9 +174,16 @@ def create_fallback_draft(articles: list) -> str:
     """Create a simple draft if Gemini fails."""
     today = datetime.now().strftime('%B %d, %Y')
 
+    top = articles[:5]
+
     headlines = "\n".join([
         f"- {a['title']} ({a['source']})"
-        for a in articles[:5]
+        for a in top
+    ])
+
+    sources = "\n".join([
+        f"- {a['title']}: {a['link']}"
+        for a in top
     ])
 
     return f"""AI Daily Brief - {today}
@@ -186,7 +194,11 @@ Here are today's top AI stories:
 
 Follow AI Daily Brief for your daily AI roundup!
 
-#AI #ArtificialIntelligence #AIDailyBrief #TechNews #AINews"""
+#AI #ArtificialIntelligence #AIDailyBrief #TechNews #AINews
+
+---
+Sources:
+{sources}"""
 
 
 def save_draft(draft: str, articles: list):
