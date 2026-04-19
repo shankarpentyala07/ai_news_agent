@@ -151,7 +151,15 @@ Generate the LinkedIn post now:"""
             )
         )
 
-        draft = response.text
+        draft = response.text.strip()
+        # Always append sources so they're never missing
+        sources_section = "\n\n---\nSources:\n" + "\n".join(
+            f"- {a['title']}: {a['link']}" for a in top_articles
+        )
+        # Remove any existing sources block Gemini may have generated, then re-add
+        if "---\nSources:" in draft:
+            draft = draft[:draft.index("---\nSources:")].rstrip()
+        draft += sources_section
         print("  Draft generated successfully!")
         return draft
 
