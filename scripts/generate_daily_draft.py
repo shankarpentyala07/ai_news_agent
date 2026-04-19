@@ -2,13 +2,14 @@
 """
 GitHub Actions script for generating daily AI news drafts.
 
-Uses the existing agent tools (rss_fetcher, news_curator) and Gemini model
+Uses the existing agent tools (rss_fetcher, news_curator) and Claude Opus
 to generate a LinkedIn post draft for manual review and posting.
 
 This is a non-interactive version of the agent pipeline designed for CI/CD.
 """
 
 import json
+import os
 import sys
 from pathlib import Path
 from datetime import datetime
@@ -18,11 +19,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from tools.rss_fetcher import fetch_rss_feed
 from tools.news_curator import filter_by_keywords, rank_by_relevance
-from config.settings import Config
 
-# Import Gemini for draft generation
-from google import genai
-from google.genai import types
+import anthropic
 
 
 def fetch_all_feeds() -> list:
@@ -72,7 +70,7 @@ def curate_articles(articles: list) -> list:
 
 
 def generate_linkedin_draft(articles: list) -> str:
-    """Generate LinkedIn post draft using Gemini model."""
+    """Generate LinkedIn post draft using Claude Opus."""
     if not articles:
         return "No new AI news articles found for today."
 
@@ -81,7 +79,7 @@ def generate_linkedin_draft(articles: list) -> str:
 
     # Format articles for the prompt
     articles_text = "\n\n".join([
-        f"**{i+1}. {a['title']}**\n"
+        f"{i+1}. {a['title']}\n"
         f"Source: {a['source']}\n"
         f"Published: {a['published']}\n"
         f"Summary: {a['summary'][:300]}...\n"
@@ -109,10 +107,6 @@ Follow AI Daily Brief for your daily AI roundup!
 
 #AI #ArtificialIntelligence #AIDailyBrief #RelevantHashtag1 #RelevantHashtag2 #RelevantHashtag3
 
----
-Sources:
-- source URLs here
-
 REQUIREMENTS:
 1. Use the 📰 header with date
 2. Use 🔹 emoji for EVERY bullet point (consistent formatting)
@@ -121,9 +115,8 @@ REQUIREMENTS:
 5. Include 4-5 stories from the articles provided
 6. End with "Follow AI Daily Brief for your daily AI roundup!"
 7. Include hashtags: ALWAYS start with #AI #ArtificialIntelligence #AIDailyBrief, then add 3-5 topic-specific hashtags based on the day's news (e.g., #MachineLearning, #LLM, #ComputerVision, #Robotics, #GenerativeAI, #OpenAI, #Google, #Anthropic, #DeepLearning, etc.)
-8. Add Sources section at the bottom with article links
-9. Keep professional but engaging tone
-10. Make hashtags relevant to the specific topics covered in today's news
+8. Keep professional but engaging tone
+9. Make hashtags relevant to the specific topics covered in today's news
 
 Top AI news articles from the last 24 hours:
 
@@ -131,32 +124,22 @@ Top AI news articles from the last 24 hours:
 
 Generate the LinkedIn post now:"""
 
-    print("\nGenerating LinkedIn draft with Gemini...")
+    print("\nGenerating LinkedIn draft with Claude Opus...")
 
     try:
-        # Create Gemini client
-        client = genai.Client(
-            vertexai=Config.GOOGLE_GENAI_USE_VERTEXAI,
-            project=Config.GOOGLE_CLOUD_PROJECT,
-            location=Config.GOOGLE_CLOUD_LOCATION
+        client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+
+        response = client.messages.create(
+            model="claude-opus-4-7",
+            max_tokens=1024,
+            messages=[{"role": "user", "content": prompt}]
         )
 
-        # Generate content
-        response = client.models.generate_content(
-            model="gemini-2.0-flash",
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                temperature=0.7,
-                max_output_tokens=1000
-            )
-        )
-
-        draft = response.text.strip()
-        # Always append sources so they're never missing
+        draft = response.content[0].text.strip()
+        # Always append sources programmatically so they're never missing
         sources_section = "\n\n---\nSources:\n" + "\n".join(
             f"- {a['title']}: {a['link']}" for a in top_articles
         )
-        # Remove any existing sources block Gemini may have generated, then re-add
         if "---\nSources:" in draft:
             draft = draft[:draft.index("---\nSources:")].rstrip()
         draft += sources_section
@@ -171,7 +154,7 @@ Generate the LinkedIn post now:"""
 
 
 def create_fallback_draft(articles: list) -> str:
-    """Create a simple draft if Gemini fails."""
+    """Create a simple draft if Claude fails."""
     today = datetime.now().strftime('%B %d, %Y')
 
     top = articles[:5]

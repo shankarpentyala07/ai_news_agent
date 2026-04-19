@@ -24,3 +24,6 @@ pytz==2024.1                # Timezone support
 
 # Utilities
 opentelemetry-instrumentation-google-genai
+
+# Claude / Anthropic SDK
+anthropic>=0.40.0
