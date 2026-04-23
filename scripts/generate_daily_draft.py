@@ -33,6 +33,29 @@ def apply_bold(text: str) -> str:
     return re.sub(r'\*\*(.+?)\*\*', make_bold, text)
 
 
+# Rotating daily hooks so the post never feels templated
+_HOOKS = [
+    "The gap between AI hype and AI deployment is closing — fast.",
+    "Every frontier AI lab is racing to own the enterprise stack — here's today's proof.",
+    "AI isn't coming for jobs — it's coming for entire workflows. Today's evidence:",
+    "The real AI arms race isn't about models. It's about who controls the infrastructure.",
+    "Agent-to-agent communication is becoming the new API. Here's what's moving:",
+    "Open source just landed another punch at closed AI. Today's biggest moves:",
+    "The line between AI research and AI product is disappearing. Today's headlines:",
+    "Whoever controls the AI tooling layer controls the future. Here's what shifted today:",
+    "AI is moving from co-pilot to autonomous operator. Today's stories show how:",
+    "Foundation models are becoming commodities. The battle is now above and below them.",
+    "Enterprise AI adoption just hit another inflection point. Here's what happened:",
+    "The multimodal era is fully here. Today's AI landscape in five stories:",
+    "Regulation, funding, and breakthroughs all moved today. Here's your briefing:",
+    "AI agents are getting memory, tools, and autonomy. Today's proof points:",
+    "The compute war, the model war, and the distribution war — all in today's news:",
+]
+
+def daily_hook() -> str:
+    return _HOOKS[datetime.now().timetuple().tm_yday % len(_HOOKS)]
+
+
 # Known AI companies and their display names for LinkedIn tagging
 KNOWN_COMPANIES = {
     'openai': 'OpenAI', 'google': 'Google', 'anthropic': 'Anthropic',
@@ -197,26 +220,26 @@ def generate_linkedin_draft(articles: list) -> str:
 
 Write today's LinkedIn post. Output ONLY the post text, nothing else.
 
-EXACT FORMAT TO FOLLOW:
+EXACT FORMAT TO FOLLOW (copy structure exactly, no blank lines around the ___ separator):
 
 AI Daily Brief | {today}
-[One sharp, thought-provoking hook sentence about today's AI landscape. Not generic.]
+[hook sentence]
 _______________
-
 * [Story 1 headline — bold the company name and 1-2 key terms using **word** markers]
 * [Story 2 headline — bold the company name and 1-2 key terms using **word** markers]
 * [Story 3 headline — bold the company name and 1-2 key terms using **word** markers]
 * [Story 4 headline — bold the company name and 1-2 key terms using **word** markers]
 * [Story 5 headline — bold the company name and 1-2 key terms using **word** markers]
 
-#AI #ArtificialIntelligence #AIDailyBrief [generate 4-6 hashtags derived ONLY from the companies, products, and technologies mentioned in today's stories — e.g. #OpenAI #Gemini #Robotics #LLM #AgenticAI]
+#AI #ArtificialIntelligence #AIDailyBrief [4-6 hashtags from the companies, products, and technologies in today's stories]
 
 RULES:
+- Output ONLY the post — no explanations, no meta-commentary, no "instead of..." phrases
 - No HTML. Use **word** to mark bold terms — do not use any other formatting
-- Each * bullet is ONE line — the headline only, no extra sentences
+- Each * bullet is ONE line — the rewritten headline only, nothing else
 - Bold the company/product name and the most important technical term in each headline
-- The hook must feel original, not a cliche
-- Every hashtag must be directly relevant to a story in the post — no generic filler tags
+- Hook: one sharp sentence about today's AI landscape. Specific to today's news, not generic
+- Every hashtag must match a company or technology actually in the post
 
 Today's stories:
 {articles_text}
@@ -256,9 +279,8 @@ def create_fallback_draft(articles: list) -> str:
     sources = "\n".join([f"- {strip_html(a['title'])}: {a['link']}" for a in top])
 
     return f"""AI Daily Brief | {today}
-The AI space never sleeps — here's what you need to know today.
+{daily_hook()}
 _______________
-
 {stories}
 
 #AI #ArtificialIntelligence #AIDailyBrief #MachineLearning #TechNews
