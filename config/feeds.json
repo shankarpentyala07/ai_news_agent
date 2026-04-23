@@ -29,6 +29,26 @@
       "name": "Google AI Blog",
       "url": "https://blog.google/technology/ai/rss/",
       "category": "official"
+    },
+    {
+      "name": "MIT Technology Review AI",
+      "url": "https://www.technologyreview.com/feed/",
+      "category": "research"
+    },
+    {
+      "name": "Hugging Face Blog",
+      "url": "https://huggingface.co/blog/feed.xml",
+      "category": "official"
+    },
+    {
+      "name": "Towards Data Science",
+      "url": "https://towardsdatascience.com/feed",
+      "category": "research"
+    },
+    {
+      "name": "arxiv AI",
+      "url": "http://export.arxiv.org/rss/cs.AI",
+      "category": "research"
     }
   ]
 }

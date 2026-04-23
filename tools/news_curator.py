@@ -238,7 +238,18 @@ def rank_by_relevance(articles_json: str, db_path: str = "") -> str:
                     break
             score += source_score
 
-            # 3. Recency (articles already filtered to last 24h, so minimal impact)
+            # 3. Story type importance
+            title = article.get("title", "").lower()
+            if any(t in title for t in {"raises", "funding", "investment", "billion", "million", "acquires", "acquisition"}):
+                score += 20
+            elif any(t in title for t in {"launches", "releases", "announces", "unveils", "introduces", "open-source", "open source"}):
+                score += 15
+            elif any(t in title for t in {"research", "paper", "breakthrough", "benchmark", "outperforms", "achieves"}):
+                score += 10
+            elif any(t in title for t in {"opinion", "how to", "guide", "tips", "roundup", "explained"}):
+                score -= 10
+
+            # 4. Recency (articles already filtered to last 24h, so minimal impact)
             # This is a tie-breaker score
             from datetime import datetime
             try:

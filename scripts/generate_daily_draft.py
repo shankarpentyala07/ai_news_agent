@@ -14,6 +14,8 @@ from tools.news_curator import filter_by_keywords, rank_by_relevance
 import anthropic
 
 
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
 def strip_html(text: str) -> str:
     return re.sub(r'<[^>]+>', '', text).strip()
 
@@ -26,11 +28,26 @@ _BOLD = {
 }
 
 def apply_bold(text: str) -> str:
-    """Convert **word** markers to LinkedIn-renderable bold Unicode."""
     def make_bold(match):
         return ''.join(_BOLD.get(c, c) for c in match.group(1))
     return re.sub(r'\*\*(.+?)\*\*', make_bold, text)
 
+
+# Known AI companies and their display names for LinkedIn tagging
+KNOWN_COMPANIES = {
+    'openai': 'OpenAI', 'google': 'Google', 'anthropic': 'Anthropic',
+    'meta': 'Meta', 'microsoft': 'Microsoft', 'apple': 'Apple',
+    'amazon': 'Amazon', 'nvidia': 'NVIDIA', 'hugging face': 'Hugging Face',
+    'mistral': 'Mistral AI', 'cohere': 'Cohere', 'deepmind': 'DeepMind',
+    'stability ai': 'Stability AI', 'midjourney': 'Midjourney',
+    'perplexity': 'Perplexity AI', 'xai': 'xAI', 'salesforce': 'Salesforce',
+    'ibm': 'IBM', 'intel': 'Intel', 'amd': 'AMD', 'aws': 'AWS',
+    'tesla': 'Tesla', 'github': 'GitHub', 'vercel': 'Vercel',
+    'databricks': 'Databricks', 'together ai': 'Together AI',
+}
+
+
+# ── Pipeline steps ─────────────────────────────────────────────────────────────
 
 def fetch_all_feeds() -> list:
     feeds_path = Path(__file__).parent.parent / "config" / "feeds.json"
@@ -51,6 +68,40 @@ def fetch_all_feeds() -> list:
     return all_articles
 
 
+def deduplicate_articles(articles: list) -> list:
+    """Remove near-duplicate stories, keeping the highest-priority source."""
+    stop = {'a','an','the','is','it','in','on','at','to','for','of','and','or','but','with','its','by','as','that'}
+    priority = {'mit':5,'arxiv':5,'techcrunch':4,'venturebeat':4,'hugging face':4,'google':4,'wired':3,'verge':3}
+
+    def words(title):
+        return set(w for w in re.sub(r'[^\w\s]', '', title.lower()).split() if w not in stop and len(w) > 2)
+
+    def rank(a):
+        src = a.get('source', '').lower()
+        return next((v for k, v in priority.items() if k in src), 2)
+
+    kept = []
+    for article in articles:
+        w = words(strip_html(article.get('title', '')))
+        dup_idx = None
+        for i, existing in enumerate(kept):
+            ew = words(strip_html(existing.get('title', '')))
+            if w and ew and len(w | ew) > 0:
+                if len(w & ew) / len(w | ew) > 0.5:
+                    dup_idx = i
+                    break
+        if dup_idx is not None:
+            if rank(article) > rank(kept[dup_idx]):
+                kept[dup_idx] = article
+        else:
+            kept.append(article)
+
+    removed = len(articles) - len(kept)
+    if removed:
+        print(f"  Removed {removed} duplicate stories")
+    return kept
+
+
 def curate_articles(articles: list) -> list:
     print(f"\nCurating {len(articles)} articles...")
 
@@ -64,9 +115,70 @@ def curate_articles(articles: list) -> list:
     if ranked_result["status"] != "success":
         print(f"  Ranking error: {ranked_result.get('error_message')}")
         return []
-    print(f"  Ranked {ranked_result['count']} articles (excluding already posted)")
 
-    return ranked_result.get("ranked_articles", [])
+    articles = ranked_result.get("ranked_articles", [])
+    articles = deduplicate_articles(articles)
+    print(f"  Final pool: {len(articles)} articles")
+    return articles
+
+
+def extract_companies(articles: list) -> list:
+    """Return display names of known companies mentioned in article titles."""
+    found = set()
+    for article in articles:
+        title = strip_html(article.get('title', '')).lower()
+        for key, name in KNOWN_COMPANIES.items():
+            if key in title:
+                found.add(name)
+    return sorted(found)
+
+
+def generate_post_image(articles: list, output_path: Path) -> Path:
+    """Generate a 1200x627 LinkedIn post image card."""
+    from PIL import Image, ImageDraw, ImageFont
+
+    W, H = 1200, 627
+    BG, ACCENT, WHITE, GRAY, DIM = '#0D1117', '#58A6FF', '#E6EDF3', '#8B949E', '#21262D'
+
+    img = Image.new('RGB', (W, H), BG)
+    draw = ImageDraw.Draw(img)
+
+    def load_font(path, size):
+        try:
+            return ImageFont.truetype(path, size)
+        except Exception:
+            return ImageFont.load_default()
+
+    base = '/usr/share/fonts/truetype/dejavu/DejaVuSans'
+    f_title = load_font(f'{base}-Bold.ttf', 48)
+    f_date  = load_font(f'{base}.ttf', 26)
+    f_story = load_font(f'{base}.ttf', 23)
+    f_small = load_font(f'{base}.ttf', 18)
+
+    # Left accent stripe
+    draw.rectangle([0, 0, 8, H], fill=ACCENT)
+
+    # Header
+    draw.text((56, 44), 'AI Daily Brief', font=f_title, fill=ACCENT)
+    draw.text((56, 108), datetime.now().strftime('%B %d, %Y'), font=f_date, fill=GRAY)
+    draw.line([(56, 152), (W - 56, 152)], fill=DIM, width=2)
+
+    # Stories
+    y = 172
+    for article in articles[:5]:
+        title = strip_html(article.get('title', ''))
+        if len(title) > 74:
+            title = title[:71] + '...'
+        draw.text((56, y), f'›  {title}', font=f_story, fill=WHITE)
+        y += 48
+
+    # Footer
+    draw.line([(56, y + 8), (W - 56, y + 8)], fill=DIM, width=2)
+    draw.text((56, y + 22), 'Follow AI Daily Brief for your daily AI roundup', font=f_small, fill=GRAY)
+    draw.text((W - 310, y + 22), 'linkedin.com/company/111211103', font=f_small, fill=GRAY)
+
+    img.save(output_path, 'PNG')
+    return output_path
 
 
 def generate_linkedin_draft(articles: list) -> str:
@@ -126,7 +238,7 @@ Write the post now:"""
         return create_fallback_draft(top_articles)
 
     sources_section = "\n\n---\nSources:\n" + "\n".join(
-        f"- {a['title']}: {a['link']}" for a in top_articles
+        f"- {strip_html(a['title'])}: {a['link']}" for a in top_articles
     )
     if "---\nSources:" in draft:
         draft = draft[:draft.index("---\nSources:")].rstrip()
@@ -156,25 +268,41 @@ Sources:
 {sources}"""
 
 
-def save_draft(draft: str, articles: list):
+def save_draft(draft: str, articles: list, image_path: Path = None):
     drafts_dir = Path(__file__).parent.parent / "drafts"
     drafts_dir.mkdir(exist_ok=True)
     today = datetime.now().strftime('%Y-%m-%d')
 
+    companies = extract_companies(articles[:5])
+    tag_note = ""
+    if companies:
+        tag_note = f"\n\n## 📌 Tag These Companies on LinkedIn\n\nWhen posting, manually tag: **{', '.join(companies)}**\n(Type @ before each name in the LinkedIn composer)\n"
+
+    image_note = ""
+    if image_path:
+        image_note = f"\n\n## 🖼️ Post Image\n\nDownload `post_image.png` from the workflow **Artifacts** tab and attach it to the LinkedIn post.\n"
+
     def write_file(path):
-        with open(path, "w") as f:
-            f.write(f"# AI Daily Brief - {today}\n\n## LinkedIn Post Draft\n\n```\n{draft}\n```\n\n## Source Articles\n\n")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(f"# AI Daily Brief - {today}\n\n")
+            f.write("## LinkedIn Post Draft\n\n```\n")
+            f.write(draft)
+            f.write("\n```\n")
+            f.write(tag_note)
+            f.write(image_note)
+            f.write("\n## Source Articles\n\n")
             for i, a in enumerate(articles[:5], 1):
-                f.write(f"{i}. [{a['title']}]({a['link']}) - {a['source']}\n")
+                f.write(f"{i}. [{strip_html(a['title'])}]({a['link']}) - {a['source']}\n")
 
     latest = drafts_dir / "latest_draft.md"
-    dated = drafts_dir / f"draft_{today}.md"
+    dated  = drafts_dir / f"draft_{today}.md"
     write_file(latest)
     write_file(dated)
     print(f"\nDraft saved to: {latest}")
-    print(f"Dated draft saved to: {dated}")
     return latest
 
+
+# ── Main ───────────────────────────────────────────────────────────────────────
 
 def main():
     print("=" * 60)
@@ -195,15 +323,29 @@ def main():
         sys.exit(0)
 
     draft = generate_linkedin_draft(curated)
-    save_draft(draft, curated)
+
+    # Generate post image
+    image_path = None
+    drafts_dir = Path(__file__).parent.parent / "drafts"
+    drafts_dir.mkdir(exist_ok=True)
+    try:
+        image_path = drafts_dir / "post_image.png"
+        generate_post_image(curated[:5], image_path)
+        print(f"Post image saved to: {image_path}")
+    except Exception as e:
+        print(f"Image generation skipped: {e}")
+        image_path = None
+
+    save_draft(draft, curated, image_path)
 
     print("\n" + "=" * 60)
     print("DRAFT GENERATION COMPLETE")
     print("=" * 60)
     print("\nNext steps:")
     print("1. Review the draft in the GitHub Issue")
-    print("2. Go to https://www.linkedin.com/company/111211103/admin/")
-    print("3. Paste and publish!")
+    print("2. Download post_image.png from workflow Artifacts")
+    print("3. Go to https://www.linkedin.com/company/111211103/admin/")
+    print("4. Paste post, attach image, tag companies, and publish!")
 
 
 if __name__ == "__main__":
