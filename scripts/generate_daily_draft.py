@@ -156,6 +156,42 @@ def extract_companies(articles: list) -> list:
     return sorted(found)
 
 
+def extract_hashtags(articles: list) -> str:
+    """Generate relevant hashtags derived from article content."""
+    base = ['#AI', '#ArtificialIntelligence', '#AIDailyBrief']
+
+    company_tags = {
+        'openai': '#OpenAI', 'google': '#Google', 'anthropic': '#Anthropic',
+        'meta': '#Meta', 'microsoft': '#Microsoft', 'nvidia': '#NVIDIA',
+        'hugging face': '#HuggingFace', 'mistral': '#MistralAI',
+        'salesforce': '#Salesforce', 'amazon': '#Amazon', 'aws': '#AWS',
+        'deepmind': '#DeepMind', 'databricks': '#Databricks',
+        'perplexity': '#Perplexity', 'cohere': '#Cohere',
+    }
+    topic_tags = {
+        'agent': '#AIAgents', 'agentic': '#AgenticAI',
+        'llm': '#LLM', 'large language': '#LLM',
+        'benchmark': '#AIBenchmark', 'reasoning': '#AIReasoning',
+        'security': '#CyberSecurity', 'cyber': '#CyberSecurity',
+        'robotics': '#Robotics', 'computer vision': '#ComputerVision',
+        'open source': '#OpenSource', 'open-source': '#OpenSource',
+        'multimodal': '#Multimodal', 'enterprise': '#EnterpriseAI',
+        'research': '#AIResearch', 'arxiv': '#AIResearch',
+        'healthcare': '#HealthcareAI', 'workspace': '#FutureOfWork',
+        'startup': '#AIStartups', 'funding': '#VentureCapital',
+    }
+
+    combined = ' '.join(strip_html(a.get('title', '')).lower() for a in articles)
+    extra = []
+    seen = set()
+    for key, tag in {**company_tags, **topic_tags}.items():
+        if key in combined and tag not in seen:
+            extra.append(tag)
+            seen.add(tag)
+
+    return ' '.join(base + extra[:6])
+
+
 def generate_post_image(articles: list, output_path: Path) -> Path:
     """Generate a 1200x627 LinkedIn post image card."""
     from PIL import Image, ImageDraw, ImageFont
@@ -283,7 +319,7 @@ def create_fallback_draft(articles: list) -> str:
 _______________
 {stories}
 
-#AI #ArtificialIntelligence #AIDailyBrief #MachineLearning #TechNews
+{extract_hashtags(top)}
 
 ---
 Sources:
@@ -320,6 +356,12 @@ def save_draft(draft: str, articles: list, image_path: Path = None):
     dated  = drafts_dir / f"draft_{today}.md"
     write_file(latest)
     write_file(dated)
+
+    companies = extract_companies(articles[:5])
+    companies_file = drafts_dir / "companies.txt"
+    with open(companies_file, "w", encoding="utf-8") as f:
+        f.write("\n".join(companies))
+
     print(f"\nDraft saved to: {latest}")
     return latest
 

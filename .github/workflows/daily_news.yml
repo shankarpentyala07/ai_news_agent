@@ -83,15 +83,20 @@ jobs:
               labels: ['daily-news', 'auto-generated']
             });
 
-      - name: Extract LinkedIn post for email
+      - name: Extract LinkedIn post and companies for email
         id: extract_post
         run: |
           if [ -f "drafts/latest_draft.md" ]; then
-            # Extract content between ``` markers (the LinkedIn post)
             POST_CONTENT=$(sed -n '/^```$/,/^```$/p' drafts/latest_draft.md | sed '1d;$d')
             echo "post_content<<EOF" >> $GITHUB_OUTPUT
             echo "$POST_CONTENT" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
+          fi
+          if [ -f "drafts/companies.txt" ]; then
+            COMPANIES=$(cat drafts/companies.txt | tr '\n' ', ' | sed 's/, $//')
+            echo "companies=$COMPANIES" >> $GITHUB_OUTPUT
+          else
+            echo "companies=" >> $GITHUB_OUTPUT
           fi
 
       - name: Send email notification
@@ -113,6 +118,14 @@ jobs:
             ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
             ${{ steps.extract_post.outputs.post_content }}
+
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            TAG THESE COMPANIES ON LINKEDIN:
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+            ${{ steps.extract_post.outputs.companies }}
+
+            (Type @ before each name in the LinkedIn composer to tag them)
 
             ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
