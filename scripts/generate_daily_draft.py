@@ -18,6 +18,20 @@ def strip_html(text: str) -> str:
     return re.sub(r'<[^>]+>', '', text).strip()
 
 
+# Unicode sans-serif bold — the only bold that renders on LinkedIn
+_BOLD = {
+    **{chr(ord('a') + i): chr(0x1D5EE + i) for i in range(26)},
+    **{chr(ord('A') + i): chr(0x1D5D4 + i) for i in range(26)},
+    **{chr(ord('0') + i): chr(0x1D7EC + i) for i in range(10)},
+}
+
+def apply_bold(text: str) -> str:
+    """Convert **word** markers to LinkedIn-renderable bold Unicode."""
+    def make_bold(match):
+        return ''.join(_BOLD.get(c, c) for c in match.group(1))
+    return re.sub(r'\*\*(.+?)\*\*', make_bold, text)
+
+
 def fetch_all_feeds() -> list:
     feeds_path = Path(__file__).parent.parent / "config" / "feeds.json"
     with open(feeds_path, "r") as f:
@@ -77,19 +91,20 @@ AI Daily Brief | {today}
 [One sharp, thought-provoking hook sentence about today's AI landscape. Not generic.]
 _______________
 
-* [Story 1 headline, rewritten to be clear and compelling — one line only]
-* [Story 2 headline — one line only]
-* [Story 3 headline — one line only]
-* [Story 4 headline — one line only]
-* [Story 5 headline — one line only]
+* [Story 1 headline — bold the company name and 1-2 key terms using **word** markers]
+* [Story 2 headline — bold the company name and 1-2 key terms using **word** markers]
+* [Story 3 headline — bold the company name and 1-2 key terms using **word** markers]
+* [Story 4 headline — bold the company name and 1-2 key terms using **word** markers]
+* [Story 5 headline — bold the company name and 1-2 key terms using **word** markers]
 
-#AI #ArtificialIntelligence #AIDailyBrief [3-5 hashtags specific to today's topics e.g. #OpenAI #LLM #Robotics]
+#AI #ArtificialIntelligence #AIDailyBrief [generate 4-6 hashtags derived ONLY from the companies, products, and technologies mentioned in today's stories — e.g. #OpenAI #Gemini #Robotics #LLM #AgenticAI]
 
 RULES:
-- Plain text only. No HTML, no markdown formatting, no bold, no asterisks except the * bullets
-- Each * bullet is ONE line — just the headline, no extra sentences
-- The hook must be original and insightful, not a template phrase
-- Hashtags must match the actual companies/topics in today's stories
+- No HTML. Use **word** to mark bold terms — do not use any other formatting
+- Each * bullet is ONE line — the headline only, no extra sentences
+- Bold the company/product name and the most important technical term in each headline
+- The hook must feel original, not a cliche
+- Every hashtag must be directly relevant to a story in the post — no generic filler tags
 
 Today's stories:
 {articles_text}
@@ -104,7 +119,7 @@ Write the post now:"""
             max_tokens=1024,
             messages=[{"role": "user", "content": prompt}]
         )
-        draft = response.content[0].text.strip()
+        draft = apply_bold(response.content[0].text.strip())
     except Exception as e:
         print(f"  Error generating draft: {e}")
         traceback.print_exc()
