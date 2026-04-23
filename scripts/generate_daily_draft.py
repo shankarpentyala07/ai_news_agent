@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import json
 import os
+import re
 import sys
 import traceback
 from pathlib import Path
@@ -11,6 +12,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from tools.rss_fetcher import fetch_rss_feed
 from tools.news_curator import filter_by_keywords, rank_by_relevance
 import anthropic
+
+
+def strip_html(text: str) -> str:
+    return re.sub(r'<[^>]+>', '', text).strip()
 
 
 def fetch_all_feeds() -> list:
@@ -57,58 +62,39 @@ def generate_linkedin_draft(articles: list) -> str:
     top_articles = articles[:5]
     today = datetime.now().strftime('%B %d, %Y')
 
-    articles_text = "\n\n".join([
-        f"{i+1}. {a['title']}\n"
-        f"Source: {a['source']}\n"
-        f"Summary: {a['summary'][:300]}...\n"
-        f"Link: {a['link']}"
+    articles_text = "\n".join([
+        f"{i+1}. {strip_html(a['title'])}"
         for i, a in enumerate(top_articles)
     ])
 
-    prompt = f"""You are the expert editor of "AI Daily Brief", a professional LinkedIn page followed by thousands of AI practitioners, researchers, and business leaders.
+    prompt = f"""You are the expert editor of "AI Daily Brief", a professional LinkedIn page for AI practitioners and business leaders.
 
-Your job: write today's LinkedIn post that feels like it was crafted by a senior tech journalist — insightful, punchy, and worth sharing.
+Write today's LinkedIn post. Output ONLY the post text, nothing else.
 
-EXACT OUTPUT FORMAT (copy this structure precisely, no deviations):
+EXACT FORMAT TO FOLLOW:
 
-📰 AI Daily Brief | {today}
+AI Daily Brief | {today}
+[One sharp, thought-provoking hook sentence about today's AI landscape. Not generic.]
+_______________
 
-[One compelling hook sentence about today's AI landscape — make it thought-provoking, not generic]
+* [Story 1 headline, rewritten to be clear and compelling — one line only]
+* [Story 2 headline — one line only]
+* [Story 3 headline — one line only]
+* [Story 4 headline — one line only]
+* [Story 5 headline — one line only]
 
-━━━━━━━━━━━━━━━━━━━━━━
+#AI #ArtificialIntelligence #AIDailyBrief [3-5 hashtags specific to today's topics e.g. #OpenAI #LLM #Robotics]
 
-🔹 [Story headline in your own words]
-[2-3 sentences: what happened → why it matters → what it signals for the industry. Be specific, not vague.]
+RULES:
+- Plain text only. No HTML, no markdown formatting, no bold, no asterisks except the * bullets
+- Each * bullet is ONE line — just the headline, no extra sentences
+- The hook must be original and insightful, not a template phrase
+- Hashtags must match the actual companies/topics in today's stories
 
-🔹 [Story headline in your own words]
-[2-3 sentences: what happened → why it matters → what it signals for the industry.]
-
-🔹 [Story headline in your own words]
-[2-3 sentences: what happened → why it matters → what it signals for the industry.]
-
-🔹 [Story headline in your own words]
-[2-3 sentences: what happened → why it matters → what it signals for the industry.]
-
-━━━━━━━━━━━━━━━━━━━━━━
-
-[One closing sentence that sparks curiosity or discussion — end with a question or bold observation]
-
-Follow AI Daily Brief for your daily AI roundup! 🚀
-
-#AI #ArtificialIntelligence #AIDailyBrief [add 4-6 specific hashtags matching today's topics]
-
-STRICT RULES:
-- NO asterisks, NO markdown, NO bullet dashes — use only the 🔹 emoji shown above
-- The hook and closing lines must feel original and insightful, not templated
-- Each story summary must explain the real-world impact, not just restate the headline
-- Hashtags must reflect the specific companies/topics in today's stories (e.g. #OpenAI #Robotics #LLM)
-- Keep the entire post under 1300 characters so it reads well on mobile
-
-Today's top AI stories:
-
+Today's stories:
 {articles_text}
 
-Write the LinkedIn post now:"""
+Write the post now:"""
 
     print("\nGenerating LinkedIn draft with Claude Opus...")
     try:
@@ -139,25 +125,14 @@ def create_fallback_draft(articles: list) -> str:
     today = datetime.now().strftime('%B %d, %Y')
     top = articles[:5]
 
-    stories = "\n\n".join([
-        f"🔹 {a['title']}\n{a['summary'][:200].strip()}..."
-        for a in top
-    ])
-    sources = "\n".join([f"- {a['title']}: {a['link']}" for a in top])
+    stories = "\n".join([f"* {strip_html(a['title'])}" for a in top])
+    sources = "\n".join([f"- {strip_html(a['title'])}: {a['link']}" for a in top])
 
-    return f"""📰 AI Daily Brief | {today}
-
+    return f"""AI Daily Brief | {today}
 The AI space never sleeps — here's what you need to know today.
-
-━━━━━━━━━━━━━━━━━━━━━━
+_______________
 
 {stories}
-
-━━━━━━━━━━━━━━━━━━━━━━
-
-What story catches your eye today? Drop a comment below 👇
-
-Follow AI Daily Brief for your daily AI roundup! 🚀
 
 #AI #ArtificialIntelligence #AIDailyBrief #MachineLearning #TechNews
 
