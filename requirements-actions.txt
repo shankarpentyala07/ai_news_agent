@@ -1,0 +1,7 @@
+# Minimal deps for GitHub Actions daily_news workflow (generate_daily_draft.py)
+feedparser==6.0.10
+requests==2.32.4
+python-dotenv==1.0.0
+pytz==2024.1
+anthropic==0.52.0
+Pillow==11.2.1
