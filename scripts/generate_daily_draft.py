@@ -32,6 +32,9 @@ def apply_bold(text: str) -> str:
         return ''.join(_BOLD.get(c, c) for c in match.group(1))
     return re.sub(r'\*\*(.+?)\*\*', make_bold, text)
 
+def bold_all(text: str) -> str:
+    return ''.join(_BOLD.get(c, c) for c in text)
+
 
 # Rotating daily hooks so the post never feels templated
 _HOOKS = [
@@ -141,6 +144,18 @@ def curate_articles(articles: list) -> list:
 
     articles = ranked_result.get("ranked_articles", [])
     articles = deduplicate_articles(articles)
+
+    # Cap arxiv papers at 2 so news articles aren't crowded out
+    arxiv_count = 0
+    capped = []
+    for a in articles:
+        if 'arxiv' in a.get('source', '').lower():
+            if arxiv_count >= 2:
+                continue
+            arxiv_count += 1
+        capped.append(a)
+    articles = capped
+
     print(f"  Final pool: {len(articles)} articles")
     return articles
 
@@ -261,19 +276,19 @@ EXACT FORMAT TO FOLLOW (copy structure exactly, no blank lines around the ___ se
 AI Daily Brief | {today}
 [hook sentence]
 _______________
-* [Story 1 headline — bold the company name and 1-2 key terms using **word** markers]
-* [Story 2 headline — bold the company name and 1-2 key terms using **word** markers]
-* [Story 3 headline — bold the company name and 1-2 key terms using **word** markers]
-* [Story 4 headline — bold the company name and 1-2 key terms using **word** markers]
-* [Story 5 headline — bold the company name and 1-2 key terms using **word** markers]
+* **[entire Story 1 headline wrapped in double asterisks]**
+* **[entire Story 2 headline wrapped in double asterisks]**
+* **[entire Story 3 headline wrapped in double asterisks]**
+* **[entire Story 4 headline wrapped in double asterisks]**
+* **[entire Story 5 headline wrapped in double asterisks]**
 
 #AI #ArtificialIntelligence #AIDailyBrief [4-6 hashtags from the companies, products, and technologies in today's stories]
 
 RULES:
 - Output ONLY the post — no explanations, no meta-commentary, no "instead of..." phrases
-- No HTML. Use **word** to mark bold terms — do not use any other formatting
-- Each * bullet is ONE line — the rewritten headline only, nothing else
-- Bold the company/product name and the most important technical term in each headline
+- No HTML. Wrap the ENTIRE headline text in **...** — do not use any other formatting
+- Each * bullet is ONE line — a rewritten punchy headline (max 15 words), fully wrapped in **...**
+- Rewrite long academic paper titles as concise news-style headlines
 - Hook: one sharp sentence about today's AI landscape. Specific to today's news, not generic
 - Every hashtag must match a company or technology actually in the post
 
@@ -291,17 +306,13 @@ Write the post now:"""
             messages=[{"role": "user", "content": prompt}]
         )
         draft = apply_bold(response.content[0].text.strip())
+        # Strip any sources block Claude may have added
+        if "---\nSources:" in draft:
+            draft = draft[:draft.index("---\nSources:")].rstrip()
     except Exception as e:
         print(f"  Error generating draft: {e}")
         traceback.print_exc()
         return create_fallback_draft(top_articles)
-
-    sources_section = "\n\n---\nSources:\n" + "\n".join(
-        f"- {strip_html(a['title'])}: {a['link']}" for a in top_articles
-    )
-    if "---\nSources:" in draft:
-        draft = draft[:draft.index("---\nSources:")].rstrip()
-    draft += sources_section
 
     print("  Draft generated successfully!")
     return draft
@@ -310,20 +321,13 @@ Write the post now:"""
 def create_fallback_draft(articles: list) -> str:
     today = datetime.now().strftime('%B %d, %Y')
     top = articles[:5]
-
-    stories = "\n".join([f"* {strip_html(a['title'])}" for a in top])
-    sources = "\n".join([f"- {strip_html(a['title'])}: {a['link']}" for a in top])
-
+    stories = "\n".join([f"* {bold_all(strip_html(a['title']))}" for a in top])
     return f"""AI Daily Brief | {today}
 {daily_hook()}
 _______________
 {stories}
 
-{extract_hashtags(top)}
-
----
-Sources:
-{sources}"""
+{extract_hashtags(top)}"""
 
 
 def save_draft(draft: str, articles: list, image_path: Path = None):
