@@ -307,6 +307,7 @@ Write the post now:"""
             messages=[{"role": "user", "content": prompt}]
         )
         draft = apply_bold(response.content[0].text.strip())
+        draft = _clean_draft(draft, top_articles)
     except Exception as e:
         print(f"  Error generating draft: {e}")
         traceback.print_exc()
@@ -314,6 +315,33 @@ Write the post now:"""
 
     print("  Draft generated successfully!")
     return draft
+
+
+def _clean_draft(draft: str, articles: list) -> str:
+    """Strip Claude artefacts and inject (via Source) on every bullet."""
+    # Remove any sources block Claude may have appended
+    for marker in ["\nSources:", "\n---\nSources:", "\n\nSources:"]:
+        if marker in draft:
+            draft = draft[:draft.index(marker)].rstrip()
+
+    # Strip trailing ellipsis lines Claude sometimes adds
+    lines = draft.split('\n')
+    while lines and lines[-1].strip() in ('...', '…', '···', ''):
+        lines.pop()
+    draft = '\n'.join(lines)
+
+    # Inject (via Source) on bullet lines that are missing it
+    source_names = [a.get('source', 'Unknown') for a in articles[:5]]
+    bullet_idx = 0
+    result = []
+    for line in draft.split('\n'):
+        if line.startswith('* ') and bullet_idx < len(source_names):
+            if '(via ' not in line:
+                line = line.rstrip() + f' (via {source_names[bullet_idx]})'
+            bullet_idx += 1
+        result.append(line)
+
+    return '\n'.join(result)
 
 
 def build_first_comment(articles: list) -> str:
