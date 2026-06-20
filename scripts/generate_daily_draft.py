@@ -263,7 +263,7 @@ def generate_linkedin_draft(articles: list) -> str:
     today = datetime.now().strftime('%B %d, %Y')
 
     articles_text = "\n".join([
-        f"{i+1}. {strip_html(a['title'])}"
+        f"{i+1}. {strip_html(a['title'])} [source: {a.get('source', 'Unknown')}]"
         for i, a in enumerate(top_articles)
     ])
 
@@ -276,18 +276,19 @@ EXACT FORMAT TO FOLLOW (copy structure exactly, no blank lines around the ___ se
 AI Daily Brief | {today}
 [hook sentence]
 _______________
-* **[entire Story 1 headline wrapped in double asterisks]**
-* **[entire Story 2 headline wrapped in double asterisks]**
-* **[entire Story 3 headline wrapped in double asterisks]**
-* **[entire Story 4 headline wrapped in double asterisks]**
-* **[entire Story 5 headline wrapped in double asterisks]**
+* **[Story 1 headline]** (via [Source 1 name])
+* **[Story 2 headline]** (via [Source 2 name])
+* **[Story 3 headline]** (via [Source 3 name])
+* **[Story 4 headline]** (via [Source 4 name])
+* **[Story 5 headline]** (via [Source 5 name])
 
 #AI #ArtificialIntelligence #AIDailyBrief [4-6 hashtags from the companies, products, and technologies in today's stories]
 
 RULES:
 - Output ONLY the post — no explanations, no meta-commentary, no "instead of..." phrases
-- No HTML. Wrap the ENTIRE headline text in **...** — do not use any other formatting
-- Each * bullet is ONE line — a rewritten punchy headline (max 15 words), fully wrapped in **...**
+- No HTML. Bold only the headline text in **...** — the (via Source) sits outside the bold, no URL
+- Each * bullet is ONE line — a rewritten punchy headline (max 15 words) in **...**, then (via [Source]) outside
+- Use the short source name provided (e.g. "ArXiv", "TechCrunch", "VentureBeat") — never a URL
 - Rewrite long academic paper titles as concise news-style headlines
 - Hook: one sharp sentence about today's AI landscape. Specific to today's news, not generic
 - Every hashtag must match a company or technology actually in the post
@@ -306,9 +307,6 @@ Write the post now:"""
             messages=[{"role": "user", "content": prompt}]
         )
         draft = apply_bold(response.content[0].text.strip())
-        # Strip any sources block Claude may have added
-        if "---\nSources:" in draft:
-            draft = draft[:draft.index("---\nSources:")].rstrip()
     except Exception as e:
         print(f"  Error generating draft: {e}")
         traceback.print_exc()
@@ -316,6 +314,15 @@ Write the post now:"""
 
     print("  Draft generated successfully!")
     return draft
+
+
+def build_first_comment(articles: list) -> str:
+    lines = ["Sources:"]
+    for i, a in enumerate(articles[:5], 1):
+        title = strip_html(a.get('title', ''))
+        url = a.get('link', '')
+        lines.append(f"{i}. {title[:70]}{'...' if len(title) > 70 else ''} — {url}")
+    return "\n".join(lines)
 
 
 def create_fallback_draft(articles: list) -> str:
@@ -344,6 +351,9 @@ def save_draft(draft: str, articles: list, image_path: Path = None):
     if image_path:
         image_note = f"\n\n## 🖼️ Post Image\n\nDownload `post_image.png` from the workflow **Artifacts** tab and attach it to the LinkedIn post.\n"
 
+    first_comment = build_first_comment(articles)
+    first_comment_note = f"\n\n## 💬 Post as First Comment (sources)\n\n```\n{first_comment}\n```\n"
+
     def write_file(path):
         with open(path, "w", encoding="utf-8") as f:
             f.write(f"# AI Daily Brief - {today}\n\n")
@@ -352,6 +362,7 @@ def save_draft(draft: str, articles: list, image_path: Path = None):
             f.write("\n```\n")
             f.write(tag_note)
             f.write(image_note)
+            f.write(first_comment_note)
             f.write("\n## Source Articles\n\n")
             for i, a in enumerate(articles[:5], 1):
                 f.write(f"{i}. [{strip_html(a['title'])}]({a['link']}) - {a['source']}\n")
@@ -365,6 +376,10 @@ def save_draft(draft: str, articles: list, image_path: Path = None):
     companies_file = drafts_dir / "companies.txt"
     with open(companies_file, "w", encoding="utf-8") as f:
         f.write("\n".join(companies))
+
+    first_comment_file = drafts_dir / "first_comment.txt"
+    with open(first_comment_file, "w", encoding="utf-8") as f:
+        f.write(first_comment)
 
     print(f"\nDraft saved to: {latest}")
     return latest

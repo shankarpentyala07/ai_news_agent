@@ -98,6 +98,12 @@ jobs:
           else
             echo "companies=" >> $GITHUB_OUTPUT
           fi
+          if [ -f "drafts/first_comment.txt" ]; then
+            FIRST_COMMENT=$(cat drafts/first_comment.txt)
+            echo "first_comment<<EOF" >> $GITHUB_OUTPUT
+            echo "$FIRST_COMMENT" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
 
       - name: Send email notification
         continue-on-error: true
@@ -118,6 +124,12 @@ jobs:
             ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
             ${{ steps.extract_post.outputs.post_content }}
+
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            POST AS FIRST COMMENT (sources):
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+            ${{ steps.extract_post.outputs.first_comment }}
 
             ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             TAG THESE COMPANIES ON LINKEDIN:
